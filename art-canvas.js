@@ -1,4 +1,4 @@
-<script>
+
 
 ////////////////
 // ART CANVAS //
@@ -221,6 +221,4 @@ document.querySelectorAll("[data-mo-action]").forEach(el => {
 				moZoom(x, true)})}
 	}
 });
-
-</script>
 
