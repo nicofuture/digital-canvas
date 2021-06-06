@@ -1,31 +1,7 @@
+/////////////////
+// MEDIA MODAL //
+/////////////////
 
-
-////////////////
-// ART CANVAS //
-////////////////
-
-const moCont = document.querySelector("[data-mo='container']");
-const moSlider = document.querySelector("[data-mo='slider']");
-const moZSpeed = moCont.getAttribute("data-mo-zoom-speed");
-var moScales = [1, 2], moScale = 1; // fallbacks
-// get + format scales
-if(moCont.hasAttribute("data-mo-scales")) {
-	moScales = moCont.getAttribute("data-mo-scales").split(",")}
-moScales.forEach((s, i) => {moScales[i] = Number(s)});
-// get + format default scale
-if(moCont.hasAttribute("data-mo-default-scale")) {
-	moScale = Number(moCont.getAttribute("data-mo-default-scale"))}
-moScale = (moScale - moScales[0]) / (moScales[moScales.length - 1] - moScales[0]);
-// other
-const moKeys = document.querySelectorAll("[data-mo-key]");
-var moThrottle = false, moTouches = [], moPrevTouchDist = -1;
-var moThrottleTime = {"scroll": 0, "gesture": 0, "touch": 0}
-if(moCont.hasAttribute("data-mo-throttle")) {
-	let data = moCont.getAttribute("data-mo-throttle").split(",");
-	data.forEach(pair => {pair = pair.split("="); moThrottleTime[pair[0]] = Number(pair[1])})
-}
-
-// .includes polyfill for IE
 if(!String.prototype.includes) {
 	String.prototype.includes = (search, start) => {
 		"use strict";
@@ -36,189 +12,360 @@ if(!String.prototype.includes) {
 	}
 }
 
-// Drag
-function moDrag(el) {
-	let pos1 = 0, pos2 = 0, pos3 = 0; pos4 = 0;
-	el.onmousedown = dragMouseDown;
-
-	function dragMouseDown(e) {
-		e = e || window.event;
-		e.preventDefault();
-		// get cursor pos at startup
-		pos3 = e.clientX;
-		pos4 = e.clientY;
-		document.onmouseup = closeDragElement;
-		// call function whenever cursor moves
-		document.onmousemove = elementDrag;
-	}
-
-	function elementDrag(e) {
-		e = e || window.event;
-		e.preventDefault();
-		// calc new cursor pos
-		pos1 = pos3 - e.clientX;
-		pos2 = pos4 - e.clientY;
-		pos3 = e.clientX;
-		pos4 = e.clientY;
-		// set el's new pos
-		el.style.top = (el.offsetTop - pos2) + "px";
-		el.style.left = (el.offsetLeft - pos1) + "px";
-	}
-
-	function closeDragElement(e) {
-		// stop moving when mouse is released
-		document.onmouseup = null;
-		document.onmousemove = null;
-	}
-}
-
-// Pointer Zoom
-function moPointerZoom(el) {
-	// wheel
-	el.addEventListener("wheel", (ev) => {
-		if(!moThrottle) {
-			moThrottle = true;
-			// zoom
-			if(ev.deltaY > 0) {document.querySelector("#MO-Minus").click()}
-			else if(ev.deltaY < 0) {document.querySelector("#MO-Plus").click()}
-			// set throttle
-			setTimeout(() => {moThrottle = false}, moThrottleTime.scroll)
-		}
-		ev.preventDefault()
-	});
-	// gestures
-	el.addEventListener("gesturestart", (ev) => {ev.preventDefault()});
-	el.addEventListener("gesturechange", (ev) => {
-		if(!moThrottle) {
-			moThrottle = true;
-			// zoom
-			if(ev.scale > 1) {document.querySelector("#MO-Plus").click()}
-			else if(ev.scale < 1) {document.querySelector("#MO-Minus").click()}
-			// set throttle
-			setTimeout(() => {moThrottle = false}, moThrottleTime.gesture)
-		}
-		ev.preventDefault()
-	});
-	el.addEventListener("gestureend", (ev) => {ev.preventDefault()});
-	// touch
-	el.addEventListener("touchstart", (ev) => {
-		if(ev.targetTouches.length == 2) {
-			ev.preventDefault();
-			for(let i = 0; i < ev.targetTouches.length; i++) {
-				moTouches.push(ev.targetTouches[i])}
-		}
-	});
-	el.addEventListener("touchmove", (ev) => {
-		if(!moThrottle && ev.targetTouches.length == 2 && ev.changedTouches.length == 2) {
-			ev.preventDefault();
-			let pt1 = -1, pt2 = -1;
-			for(let i = 0; i < moTouches.length; i++) {
-				if(moTouches[i].identifier == ev.targetTouches[0].identifier) {pt1 = i}
-				if(moTouches[i].identifier == ev.targetTouches[1].identifier) {pt2 = i}
-			}
-			if(pt1 >= 0 && pt2 >= 0) {
-				let dist1 = Math.abs(moTouches[pt1].clientX - moTouches[pt2].clientX);
-				let dist2 = Math.abs(ev.targetTouches[0].clientX - ev.targetTouches[1].clientX);
-				console.log("OG: " + dist1);
-				console.log("NEW: " + dist2);
-				if(dist2 > dist1) {
-					console.log("ZOOM IN"); document.querySelector("#MO-Plus").click()}
-				else if(dist2 < dist1) {
-					console.log("ZOOM OUT"); document.querySelector("#MO-Minus").click()}
-				moTouches[pt1] = ev.targetTouches[0];
-				moTouches[pt2] = ev.targetTouches[1];
-				setTimeout(() => {moThrottle = false}, moThrottleTime.touch)
-			}
-			else {moTouches = []}
-		}
-	});
-	el.addEventListener("touchend", (ev) => {touchEndHandler(ev)});
-	el.addEventListener("touchcancel", (ev) => {touchEndHandler(ev)});
-	function touchEndHandler(ev) {
-		console.log(moTouches);
-		if(moTouches[0] != undefined) {
-			for(let i = 0; i < moTouches.length; i++) {
-				if(moTouches[i].identifier == ev.identifier) {
-					console.log("REMOVE");
-					moTouches.splice(i, 1)}
-			}
-		}
-		console.log(moTouches)
-	}
-}
-
-// Zoom
-function moZoom(x, y) {
-	let s = -1;
-	if(x == undefined) {x = moScale; y = true}
-	if(y == undefined) {y = false}
-	// slider
-	if(!isNaN(x)) {
-		x = Number(x);
-		s = ((moScales[moScales.length - 1] - moScales[0]) * x) + moScales[0]
-	}
-	// scales
-	else if(x != undefined) {
-		let prev = moScales[0];
-		let next = moScales[moScales.length - 1];
-		moScales.every((scale, i) => {
-			if(scale < moScale) {return true}
-			else if(scale > moScale) {
-				if(i - 1 > 0) {prev = moScales[i - 1]}
-				if(i < moScales.length - 1) {next = moScales[i]}
+function moTransform(mo, zm, pt, tr, sn) {
+	if(mo === undefined) {return}
+	// scale
+	let sc = mo.scale;
+	if(zm === undefined) {
+		zm = (mo.scale - mo.scales[0]) / (mo.scales[mo.scales.length - 1] - mo.scales[0])}
+	if(!isNaN(zm)) {
+		zm = Number(zm);
+		sc = ((mo.scales[mo.scales.length - 1] - mo.scales[0]) * zm) + mo.scales[0]}
+	else {
+		let prev = mo.scales[0], next = mo.scales[mo.scales.length - 1];
+		mo.scales.every((s, i) => {
+			if(s < mo.scale) {return true}
+			else if(s > mo.scale) {
+				if(i - 1 > 0) {prev = mo.scales[i - 1]}
+				if(i < mo.scales.length - 1) {next = mo.scales[i]}
 				return false
 			}
-			else if(scale == moScale) {
-				if(i - 1 > 0) {prev = moScales[i - 1]}
-				if(i + 1 < moScales.length - 1) {next = moScales[i + 1]}
+			else if(s == mo.scale) {
+				if(i - 1 > 0) {prev = mo.scales[i - 1]}
+				if(i + 1 < mo.scales.length - 1) {next = mo.scales[i + 1]}
 				return false
 			}
 			return true
 		});
-		if(x == "+") {s = next}
-		else if(x == "-") {s = prev}
-		y = true
+		if(zm == "+") {sc = next}
+		else if(zm == "-") {sc = prev}
+		tr = true
 	}
-	// zoom
-	if(y) {moCont.style.transitionDuration = moZSpeed}
-	if(s < moScales[0]) {s = moScales[0]}
-	else if(s > moScales[moScales.length - 1]) {s = moScales[moScales.length - 1]}
-	moCont.style.transform = "scale(" + s + "," + s + ")"; moScale = s;
-	if(y) {moSlider.value = (s - moScales[0]) / (moScales[moScales.length - 1] - moScales[0])}
-	setTimeout(() => {moCont.style.removeProperty("transition-duration")},
-		Number(moZSpeed.replace(/\D/g,'')))
+	if(sc < mo.scales[0]) {sc = mo.scales[0]}
+	else if(sc > mo.scales[mo.scales.length - 1]) {sc = mo.scales[mo.scales.length - 1]}
+	// translate
+	let vp = mo.viewport.getBoundingClientRect(), cn = [vp.width / 2, vp.height / 2];
+	if(Array.isArray(pt) && pt.length >= 2) {
+		if(Array.isArray(pt[0]) && Array.isArray(pt[1])) {
+			pt = [
+				(pt[0][0] - pt[1][0]) / 2 + pt[1][0],
+				(pt[0][1] - pt[1][1]) / 2 + pt[1][1]
+			]}
+		pt.forEach((p, i) => {pt[i] = Math.round(pt[i] - cn[i])})
+	}
+	else {pt = mo.center}
+	// snap
+	if(sn !== false) {
+		let me = mo.media.getBoundingClientRect(), co = mo.cont.getBoundingClientRect();
+		let ogpt = [pt[0] + cn[0], pt[1] + cn[1]], scme = [(me.width / mo.scale) * sc, (me.height / mo.scale) * sc];
+		if(scme[0] <= vp.width) {pt[0] = 0}
+		else if(ogpt[0] - (scme[0] / 2) > vp.left) {
+			pt[0] = cn[0] + Math.abs((cn[0] * sc) - cn[0]) - Math.abs(co.left - me.left) - cn[0]}
+		else if(ogpt[0] + (scme[0] / 2) < vp.right) {
+			pt[0] = cn[0] - Math.abs((cn[0] * sc) - cn[0]) + Math.abs(co.right - me.right) - cn[0]}
+		if(scme[1] <= vp.height) {pt[1] = 0}
+		else if(ogpt[1] - (scme[1] / 2) > vp.top) {
+			pt[1] = cn[1] + Math.abs((cn[1] * sc) - cn[1]) - Math.abs(co.top - me.top) - cn[1]}
+		else if(ogpt[1] + (scme[1] / 2) < vp.bottom) {
+			pt[1] = cn[1] - Math.abs((cn[1] * sc) - cn[1]) + Math.abs(co.bottom - me.bottom) - cn[1]}
+	}
+	// transform
+	if(tr !== false) {
+		mo.cont.style.transitionDuration = mo.zspeed;
+		//mo.controls.sliders.forEach(sl => {
+		//	sl.value = (sc - mo.scales[0]) / (mo.scales[mo.scales.length - 1] - mo.scales[0])});
+	}
+	mo.controls.sliders.forEach(sl => {
+		sl.value = (sc - mo.scales[0]) / (mo.scales[mo.scales.length - 1] - mo.scales[0])});
+	mo.cont.style.transform = "translate(" + pt[0] + "px, " + pt[1] + "px) scale(" + sc + ")";
+	mo.center = pt; mo.scale = sc;
+	setTimeout(() => {mo.cont.style.removeProperty("transition")}, mo.zspeed)
+}
+
+function moGestures(mo) {
+	if(mo === undefined) {return}
+	// mouse
+	let pt = [0, 0], pt0 = [0, 0], vp;
+	mo.cont.addEventListener("mousedown", (ev) => {
+		// drag
+		vp = mo.viewport.getBoundingClientRect();
+		vp = [vp.width / 2, vp.height / 2];
+		pt0[0] = ev.clientX;
+		pt0[1] = ev.clientY;
+		mo.cont.addEventListener("mousemove", dragMove);
+		mo.cont.addEventListener("mouseup", dragEnd);
+		mo.cont.addEventListener("mouseout", dragEnd);
+		ev.preventDefault()
+	});
+	// touch
+	mo.cont.addEventListener("touchstart", (ev) => {
+		// pinch
+		if(ev.targetTouches.length == 2) {
+			ev.preventDefault();
+			for(let i = 0; i < ev.targetTouches.length; i++) {
+				mo.evcache.push(ev.targetTouches[i])}
+			mo.cont.removeEventListener("mousemove", dragMove);
+			mo.cont.removeEventListener("mouseup", dragEnd);
+			mo.cont.removeEventListener("mouseout", dragEnd)
+		}
+		// drag
+		else if(ev.targetTouches.length == 1) {
+			vp = mo.viewport.getBoundingClientRect();
+			vp = [vp.width / 2, vp.height / 2];
+			pt0[0] = ev.targetTouches[0].clientX;
+			pt0[1] = ev.targetTouches[0].clientY;
+			mo.cont.addEventListener("touchmove", dragMove);
+			mo.cont.addEventListener("touchend", dragEnd);
+			mo.cont.addEventListener("touchcancel", dragEnd)
+		}
+	});
+	mo.cont.addEventListener("touchmove", (ev) => {
+		if(mo.throttle.active !== true && ev.targetTouches.length == 2) {
+			ev.preventDefault();
+			mo.throttle.active = true;
+			let ppt1 = -1, ppt2 = -1;
+			mo.evcache.forEach((p, i) => {
+				if(p.identifier == ev.targetTouches[0].identifier) {ppt1 = i}
+				if(p.identifier == ev.targetTouches[1].identifier) {ppt2 = i}
+			});
+			if(ppt1 >= 0 && ppt2 >= 0) {
+				let d1 = Math.abs(mo.evcache[ppt1].clientX - mo.evcache[ppt2].clientX);
+				let d2 = Math.abs(ev.targetTouches[0].clientX - ev.targetTouches[1].clientX);
+				if(d2 > d1) {moTransform(mo, "+", [
+						[ev.targetTouches[0].clientX, ev.targetTouches[0].clientY],
+						[ev.targetTouches[1].clientX, ev.targetTouches[1].clientY]])}
+				else if(d2 < d1) {moTransform(mo, "-")}
+				mo.evcache[ppt1] = ev.targetTouches[0];
+				mo.evcache[ppt2] = ev.targetTouches[1];
+				setTimeout(() => {mo.throttle.active = false}, mo.throttle.touch)
+			}
+			else {mo.evcache = []}
+		}
+	});
+	mo.cont.addEventListener("touchend", tPinchEnd);
+	mo.cont.addEventListener("touchcancel", tPinchEnd);
+	// drag // pinch
+	function dragMove(ev) {
+		ev.preventDefault(); let int = ev;
+		if(ev.type == "touchmove") {int = ev.targetTouches[0]}
+		pt[0] = mo.center[0] + (int.clientX - pt0[0]) + vp[0];
+		pt[1] = mo.center[1] + (int.clientY - pt0[1]) + vp[1];
+		pt0[0] = int.clientX; pt0[1] = int.clientY;
+		moTransform(mo, undefined, pt, false, false);
+	}
+	function dragEnd(ev) {
+		moTransform(mo);
+		let ev1 = "touchmove", ev2 = "touchend", ev3 = "touchcancel";
+		if(ev.type == "mouseup" || ev.type == "mouseout") {
+			ev1 = "mousemove"; ev2 = "mouseup"; ev3 = "mouseout"}
+		mo.cont.removeEventListener(ev1, dragMove);
+		mo.cont.removeEventListener(ev2, dragEnd);
+		mo.cont.removeEventListener(ev3, dragEnd)
+	}
+	function tPinchEnd(ev) {
+		if(mo.evcache[0] != undefined) {mo.evcache.forEach((p, i) => {
+			if(p.identifier == ev.identifier) {mo.evcache.splice(i, 1)}})}
+	}
+	// scroll
+	mo.cont.addEventListener("wheel", (ev) => {
+		if(mo.throttle.active !== true) {
+			mo.throttle.active = true;
+			if(ev.deltaY > 0) {moTransform(mo, "-")}
+			if(ev.deltaY < 0) {moTransform(mo, "+")}
+			setTimeout(() => {mo.throttle.active = false}, mo.throttle.scroll)
+		}
+		ev.preventDefault()
+	});
+	// gestures
+	mo.cont.addEventListener("gesturestart", (ev) => {ev.preventDefault()});
+	mo.cont.addEventListener("gesturechange", (ev) => {
+		if(mo.throttle.active !== true) {
+			mo.throttle.active = true;
+			if(ev.scale < 1) {moTransform(mo, "-")}
+			if(ev.scale > 1) {moTransform(mo, "+")}
+			setTimeout(() => {mo.throttle.active = false}, mo.throttle.gesture)
+		}
+		ev.preventDefault()
+	});
+	mo.cont.addEventListener("gestureend", (ev) => {ev.preventDefault()});
+}
+
+function moActions(mo) {
+	let x = moToArray(mo.mo.querySelectorAll("[data-mo-action]"));
+	x.forEach(y => {
+		let tr, ac = y.getAttribute("data-mo-action"), ta;
+		if(ac.includes("=")) {tr = ac.split("=")[0]; ac = ac.split("=")[1]}
+		if(y.hasAttribute("data-mo-target")) {
+			ta = mo.mo.querySelector(y.getAttribute("data-mo-target"))}
+		if(tr !== undefined) {
+			// remote click
+			if(ac == "click" && ta !== undefined) {
+				y.addEventListener(tr, () => {ta.click()})
+			}
+			// minmax
+			else if(ac == "minmax") {
+				y.addEventListener(tr, (ev) => {
+					let z = 1; if(mo.scale == mo.scales[mo.scales.length - 1]) {z = 0}
+					moTransform(mo, z)
+				})
+			}
+			// body scroll
+			else if(ac == "bodyscrollstop" || ac == "bodyscrollgo") {
+				y.addEventListener(tr, () => {
+					if(ac.includes("stop")) {document.body.style.overflowY = "hidden"}
+					if(ac.includes("go")) {document.body.style.removeProperty("overflow-y")}
+				})
+			}
+		}
+	})
+}
+
+function moKeydown(ev) {
+	moRef.forEach(mo => {
+		if(mo.active === true && mo.hasOwnProperty("keys")) {
+			mo.keys.forEach(x => {
+				if(ev.keyCode == x.key) {
+					if(x.preventdefault === true) {ev.preventDefault()}
+					if(x.target != "") {mo.mo.querySelector(x.target).click()}
+				}
+			})
+		}
+	})
+}
+
+function moUIFade(mo) {
+	if(window.innerWidth <= 767) {return}
+	if(mo !== undefined && mo.hasOwnProperty("ui")) {
+		mo.ui.t = new Date();
+		//mo.mo.addEventListener("pointermove", UIFadeIn);
+		//mo.mo.addEventListener("touchstart", UIFadeIn);
+		mo.viewport.addEventListener("pointermove", UIFadeIn);
+		mo.viewport.addEventListener("touchstart", UIFadeIn);
+		function UIFadeIn() {
+			if(mo.active === true) {
+				mo.ui.t = new Date();
+				//document.body.style.removeProperty("cursor");
+				mo.viewport.style.removeProperty("cursor");
+				mo.ui.els.forEach(el => {el.style.removeProperty("opacity")})
+			}
+		}
+		setInterval(() => {
+			if(mo.active === true) {
+				let x = new Date();
+				if(mo.ui.t.getTime() + 1000 < x.getTime()) {
+					//document.body.style.cursor = "none";
+					mo.viewport.style.cursor = "none";
+					mo.ui.els.forEach(el => {el.style.opacity = "0"})
+				}
+			}
+		}, 1000)
+	}
+}
+
+function moToArray(x) {
+	let y = [];
+	for(let i = 0; i < x.length; i++) {y.push(x[i])}
+	return y
 }
 
 // Setup
-moZoom(); // Set zoom to default
-moPointerZoom(moCont);
-//moDrag(moCont); // Make draggable
-moSlider.addEventListener("input", () => {moZoom(moSlider.value)});
-// Keys
-document.addEventListener("keydown", (ev) => {
-	moKeys.forEach(el => {
-		if(el.hasAttribute("data-mo-target")) {
-			if(ev.keyCode == el.getAttribute("data-mo-key")) {
-				document.querySelector(el.getAttribute("data-mo-target")).click()}}
+let moRef = [];
+let modals = document.querySelectorAll("[data-mo='modal']");
+for(let i = 0; i < modals.length; i++) {
+	// defaults
+	moRef.push({
+		"mo": modals[i],
+		"id": i,
+		"active": true,
+		"scale": 0,
+		"scales": [0.9, 1, 1.2, 1.6, 2.2, 3],
+		"defaultscale": 0.9,
+		"center": [0, 0],
+		"zspeed": 200,
+		"throttle": {"scroll": 0, "gesture": 0, "touch": 0, "active": false},
+		"evcache": [],
+		"controls": {}
 	})
-});
-// Actions
-document.querySelectorAll("[data-mo-action]").forEach(el => {
-	// el = element // tr = trigger // ac = action // ta = target
-	let tr, ac = el.getAttribute("data-mo-action"), ta;
-	if(ac.includes("=")) {tr = ac.split("=")[0]; ac = ac.split("=")[1]}
-	if(tr != undefined) {
-		// Remote Click
-		if(ac.includes("click") && ta != undefined) {
-			el.addEventListener(tr, () => {ta.click()})}
-		// Zoom
-		else if(ac.includes("zoom")) {
-			el.addEventListener(tr, () => {moZoom(ac.replace("zoom", ""))})}
-		// Minmax
-		else if(ac.includes("minmax")) {
-			el.addEventListener(tr, () => {
-				let x = 1; if(moScale == moScales[moScales.length - 1]) {x = 0}
-				moZoom(x, true)})}
+}
+moRef.forEach(mo => {
+	// scales
+	if(mo.mo.hasAttribute("data-mo-scales")) {
+		let x = [], y = mo.mo.getAttribute("data-mo-scales").split(",");
+		y.forEach(z => {if(!isNaN(z)) {x.push(Number(z))}});
+		if(x.length >= 2) {mo.scales = x}
 	}
+	// default scale
+	if(mo.mo.hasAttribute("data-mo-defaultscale")) {
+		let x = mo.mo.getAttribute("data-mo-defaultscale");
+		if(!isNaN(x)) {
+			mo.defaultscale = Number(x);
+			//mo.scale = (mo.defaultscale - mo.scales[0]) / (mo.scales[mo.scales.length - 1] - mo.scales[0])
+			mo.scale = mo.defaultscale
+		}
+	}
+	// zoom speed
+	if(mo.mo.hasAttribute("data-mo-zoomspeed")) {
+		let x = mo.mo.getAttribute("data-mo-zoomspeed");
+		if(!isNaN(x)) {x = x + "ms"}
+		mo.zspeed = x
+	}
+	// throttle
+	if(mo.mo.hasAttribute("data-mo-throttle")) {
+		let x = mo.mo.getAttribute("data-mo-throttle").split(",");
+		x.forEach(y => {
+			y = y.split("=");
+			if(!isNaN(y[1])) {mo.throttle[y[0]] = Number(y[1])}
+		})
+	}
+	// viewport
+	if(mo.mo.querySelector("[data-mo='viewport']")) {
+		mo.viewport = mo.mo.querySelector("[data-mo='viewport']");
+	}
+	// container
+	if(mo.mo.querySelector("[data-mo='container']")) {
+		mo.cont = mo.mo.querySelector("[data-mo='container']");
+		if(mo.cont.querySelector("[data-mo='media']")) {
+			mo.media = mo.cont.querySelector("[data-mo='media']")
+		}
+	}
+	// ui
+	if(mo.mo.querySelector("[data-mo='ui']")) {
+		mo.ui = {"t": 0, "els": moToArray(mo.mo.querySelectorAll("[data-mo='ui']"))}
+	}
+	// controls
+	if(mo.mo.querySelector("[data-mo='-']")) {
+		mo.controls.minus = moToArray(mo.mo.querySelectorAll("[data-mo='-']"));
+		mo.controls.minus.forEach(x => {x.addEventListener("click", () => {moTransform(mo, "-")})})
+	}
+	if(mo.mo.querySelector("[data-mo='+']")) {
+		mo.controls.plus = moToArray(mo.mo.querySelectorAll("[data-mo='+']"));
+		mo.controls.plus.forEach(x => {x.addEventListener("click", () => {moTransform(mo, "+")})})
+	}
+	if(mo.mo.querySelector("[data-mo='slider']")) {
+		mo.controls.sliders = moToArray(mo.mo.querySelectorAll("[data-mo='slider']"));
+		mo.controls.sliders.forEach(x => {x.addEventListener("input", () => {
+			moTransform(mo, x.value, undefined, false)})})
+	}
+	// keys
+	if(mo.mo.querySelector("[data-mo-key]")) {
+		mo.keys = [];
+		let x = moToArray(mo.mo.querySelectorAll("[data-mo-key]"));
+		x.forEach(y => {
+			let z = {"key": y.getAttribute("data-mo-key"), "preventdefault": false, "target": ""}
+			if(z.key.includes("*")) {z.key = z.key.replace("*", ""); z.preventdefault = true}
+			if(y.hasAttribute("data-mo-target")) {z.target = y.getAttribute("data-mo-target")}
+			mo.keys.push(z)
+		})
+	}
+	// setup
+	if(mo.hasOwnProperty("cont")) {
+		moTransform(mo, undefined, undefined, false);
+		moGestures(mo);
+	}
+	if(mo.hasOwnProperty("ui")) {moUIFade(mo)}
+	if(mo.mo.querySelector("[data-mo-action]")) {moActions(mo)}
 });
+document.addEventListener("keydown", moKeydown);
+document.body.style.overflowY = "hidden";
 
+console.log(moRef);
